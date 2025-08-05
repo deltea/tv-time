@@ -6,12 +6,14 @@
   let player: YouTubePlayer;
   let isPlayerLoaded = $state(false);
   let isDataLoaded = $state(false);
-  let videoId = "";
+  let videoId = $state("");
   let startedAt = 0;
   let currentTime = $derived((Date.now() - startedAt) / 1000);
   let videoDuration = $state(0);
+  let videoInfo: any = $state(null);
 
   onMount(async () => {
+    // when page loaded
   });
 
   onDestroy(() => {
@@ -35,22 +37,31 @@
     await player.playVideo();
 
     // wait for the player to be ready before seeking
-    let hasSeeked = false;
     player.on("stateChange", async (event) => {
-      if (event.data !== 1 || hasSeeked) return;
+      if (event.data !== 1 || isPlayerLoaded) return;
 
       console.log("player is ready");
       console.log("current time:", currentTime);
       await player.seekTo(currentTime, true);
       videoDuration = await player.getDuration();
-      hasSeeked = true;
-    });
 
-    isPlayerLoaded = true;
+      const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+      videoInfo = await response.json();
+
+      isPlayerLoaded = true;
+    });
   }
 </script>
 
 <main class="flex flex-col gap-16 justify-center items-center h-screen">
+  {#if videoInfo}
+    <h1>
+      <a href="https://youtube.com/watch?v={videoId}"><b>{videoInfo.title}</b></a>
+      <!-- by
+      <a href={videoInfo.author_url}><b>{videoInfo.author_name}</b></a> -->
+    </h1>
+  {/if}
+
   <div class={isPlayerLoaded ? "block" : "hidden"}>
     <!-- iframe will replace this div -->
     <div
