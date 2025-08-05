@@ -5,8 +5,18 @@
 
   let player: YouTubePlayer;
   let isPlayerLoaded = $state(false);
+  let isDataLoaded = $state(false);
+  let videoId = "";
+  let timestamp = 0;
 
   onMount(async () => {
+    const response = await fetch("/api/data");
+    const data = await response.json();
+    console.log(data);
+    videoId = data.videoId || "MJbE3uWN9vE";
+    timestamp = +data.timestamp || 0;
+
+    isDataLoaded = true;
   });
 
   onDestroy(() => {
@@ -17,12 +27,21 @@
     player = YoutubePlayer("video-player", {
       playerVars: { controls: 0, loop: 1 }
     });
-    player.loadVideoById("85VQEzwzAvE");
-    // player.loadVideoById("MJbE3uWN9vE");
+
+    player.loadVideoById(videoId);
+    console.log(timestamp);
     await player.playVideo();
-    console.log("video started");
+
+    let hasSeeked = false;
+    player.on("stateChange", async (event) => {
+      if (event.data !== 1 || hasSeeked) return;
+
+      console.log("player is ready");
+      await player.seekTo(timestamp, true);
+      hasSeeked = true;
+    });
+
     isPlayerLoaded = true;
-    console.log(isPlayerLoaded);
   }
 </script>
 
@@ -35,7 +54,12 @@
     ></div>
   </div>
 
-  {#if !isPlayerLoaded}
-    <button onclick={turnOnTV}>turn on the tv</button>
+  {#if !isPlayerLoaded && isDataLoaded}
+    <button
+      onclick={turnOnTV}
+      class="cursor-pointer border-2 border-fg px-6 py-4 hover:bg-fg hover:text-bg font-bold"
+    >
+      turn on the tv
+    </button>
   {/if}
 </main>
