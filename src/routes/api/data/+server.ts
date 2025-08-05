@@ -1,24 +1,28 @@
-import { REDIS_URL } from "$env/static/private";
+import { KV_REST_API_TOKEN, KV_REST_API_URL } from "$env/static/private";
 import { json } from "@sveltejs/kit";
-import { createClient } from "redis";
+import { Redis } from "@upstash/redis";
 
-const redis = await createClient({ url: REDIS_URL }).connect();
+const redis = new Redis({
+  url: KV_REST_API_URL || "",
+  token: KV_REST_API_TOKEN || "",
+});
 
 export const GET = async () => {
-  const timestamp = await redis.get("timestamp");
+  const startedAt = await redis.get("started-at");
   const videoId = await redis.get("video-id");
 
-  return json({ timestamp, videoId });
+  return json({ startedAt, videoId });
 }
 
-export const POST = async ({ request }) => {
-  const { timestamp } = await request.json();
-  console.log("received timestamp:", timestamp);
+// export const POST = async ({ request }) => {
+//   const { timestamp } = await request.json();
+//   console.log("received timestamp:", timestamp);
 
-  if (timestamp) {
-    await redis.set("timestamp", timestamp);
-    return json({ success: true, message: "timestamp updated successfully" });
-  } else {
-    return json({ success: false, message: "invalid timestamp." }, { status: 400 });
-  }
-}
+//   if (timestamp) {
+//     await redis.set("timestamp", timestamp);
+//     return json({ success: true, message: "timestamp updated successfully" });
+//   } else {
+//     return json({ success: false, message: "invalid timestamp." }, { status: 400 });
+//   }
+// }
+

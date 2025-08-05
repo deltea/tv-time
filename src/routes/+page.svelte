@@ -7,14 +7,14 @@
   let isPlayerLoaded = $state(false);
   let isDataLoaded = $state(false);
   let videoId = "";
-  let timestamp = 0;
+  let startedAt = 0;
 
   onMount(async () => {
     const response = await fetch("/api/data");
     const data = await response.json();
     console.log(data);
     videoId = data.videoId || "MJbE3uWN9vE";
-    timestamp = +data.timestamp || 0;
+    startedAt = +data.startedAt || 0;
 
     isDataLoaded = true;
   });
@@ -29,15 +29,18 @@
     });
 
     player.loadVideoById(videoId);
-    console.log(timestamp);
+    console.log(startedAt);
     await player.playVideo();
 
+    // wait for the player to be ready before seeking
     let hasSeeked = false;
     player.on("stateChange", async (event) => {
       if (event.data !== 1 || hasSeeked) return;
 
       console.log("player is ready");
-      await player.seekTo(timestamp, true);
+      const currentTime = Date.now() - startedAt;
+      console.log("current time:", currentTime / 1000);
+      await player.seekTo(currentTime / 1000, true);
       hasSeeked = true;
     });
 
