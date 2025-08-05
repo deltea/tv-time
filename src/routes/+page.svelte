@@ -8,15 +8,10 @@
   let isDataLoaded = $state(false);
   let videoId = "";
   let startedAt = 0;
+  let currentTime = $derived((Date.now() - startedAt) / 1000);
+  let videoDuration = $state(0);
 
   onMount(async () => {
-    const response = await fetch("/api/data");
-    const data = await response.json();
-    console.log(data);
-    videoId = data.videoId || "MJbE3uWN9vE";
-    startedAt = +data.startedAt || 0;
-
-    isDataLoaded = true;
   });
 
   onDestroy(() => {
@@ -24,12 +19,19 @@
   });
 
   async function turnOnTV() {
+    const response = await fetch("/api/data");
+    const data = await response.json();
+    console.log(data);
+    videoId = data.videoId || "MJbE3uWN9vE";
+    startedAt = +data.startedAt || 0;
+
+    isDataLoaded = true;
+
     player = YoutubePlayer("video-player", {
       playerVars: { controls: 0, loop: 1 }
     });
 
     player.loadVideoById(videoId);
-    console.log(startedAt);
     await player.playVideo();
 
     // wait for the player to be ready before seeking
@@ -38,9 +40,9 @@
       if (event.data !== 1 || hasSeeked) return;
 
       console.log("player is ready");
-      const currentTime = Date.now() - startedAt;
-      console.log("current time:", currentTime / 1000);
-      await player.seekTo(currentTime / 1000, true);
+      console.log("current time:", currentTime);
+      await player.seekTo(currentTime, true);
+      videoDuration = await player.getDuration();
       hasSeeked = true;
     });
 
@@ -53,14 +55,20 @@
     <!-- iframe will replace this div -->
     <div
       id="video-player"
-      class="border-4 border-muted rounded-2xl pointer-events-none"
+      class="border-4 border-fg rounded-xl pointer-events-none"
     ></div>
   </div>
 
-  {#if !isPlayerLoaded && isDataLoaded}
+  {#if videoDuration > 0}
+    <div class="bg-neutral-800 rounded-full h-4 w-[32rem]">
+      <div class="bg-fg rounded-full h-full" style="width: {currentTime / videoDuration * 100}%"></div>
+    </div>
+  {/if}
+
+  {#if !isPlayerLoaded}
     <button
       onclick={turnOnTV}
-      class="cursor-pointer border-2 border-fg px-6 py-4 hover:bg-fg hover:text-bg font-bold"
+      class="cursor-pointer border-2 border-fg px-6 py-4 hover:bg-fg hover:text-bg font-bold rounded-xl"
     >
       turn on the tv
     </button>
