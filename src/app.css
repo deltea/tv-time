@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: var(--color-neutral-950);
+  --color-fg: var(--color-neutral-100);
+  --color-muted: var(--color-neutral-700);
+}
+
+body {
+  @apply bg-bg text-fg font-mono;
+}
