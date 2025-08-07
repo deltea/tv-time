@@ -56,6 +56,7 @@
         isPlayerLoaded = true;
       } else if (event.data === 0) {
         await nextVideo();
+        await updateVideoInfo();
       }
     });
   }

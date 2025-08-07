@@ -1,3 +1,4 @@
+import { dev } from "$app/environment";
 import { KV_REST_API_TOKEN, KV_REST_API_URL } from "$env/static/private";
 import type { RequestHandler } from "@sveltejs/kit";
 import { Redis } from "@upstash/redis";
@@ -20,7 +21,9 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 
   // ping server to play next video
-  const response = await fetch("http://localhost:8000/", {
+  const endpoint = dev ? "http://localhost:8000/" : "https://tv-time-server.onrender.com:8000/";
+
+  const response = await fetch(endpoint, {
     method: "POST"
   });
 
