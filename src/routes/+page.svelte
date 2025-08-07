@@ -5,15 +5,18 @@
 
   let player: YouTubePlayer;
   let isPlayerLoaded = $state(false);
-  let isDataLoaded = $state(false);
-  let videoId = $state("");
-  let startedAt = 0;
-  let currentTime = $derived((Date.now() - startedAt) / 1000);
+  let queue: string[] = $state([]);
+  let startedAt = $state(0);
+  let currentTime = $state(0);
   let videoDuration = $state(0);
   let videoInfo: any = $state(null);
+  let videoIdInput = $state("");
 
   onMount(async () => {
     // when page loaded
+    setInterval(() => {
+      currentTime = (Date.now() - startedAt) / 1000;
+    }, 100);
   });
 
   onDestroy(() => {
@@ -24,41 +27,84 @@
     const response = await fetch("/api/data");
     const data = await response.json();
     console.log(data);
-    videoId = data.videoId || "MJbE3uWN9vE";
+    queue = data.queue || ["MJbE3uWN9vE"];
     startedAt = +data.startedAt || 0;
 
-    isDataLoaded = true;
+    if (queue.length === 0) {
+      console.warn("no videos in queue");
+      return;
+    }
 
     player = YoutubePlayer("video-player", {
-      playerVars: { controls: 0, loop: 1 }
+      playerVars: {
+        controls: 0,
+        loop: 1
+      }
     });
 
-    player.loadVideoById(videoId);
+    player.loadVideoById(queue[0]);
     await player.playVideo();
 
     // wait for the player to be ready before seeking
     player.on("stateChange", async (event) => {
-      if (event.data !== 1 || isPlayerLoaded) return;
+      if (event.data === 1 && !isPlayerLoaded) {
+        console.log("player is ready");
+        console.log("current time:", currentTime);
+        await player.seekTo(currentTime, true);
+        await updateVideoInfo();
 
-      console.log("player is ready");
-      console.log("current time:", currentTime);
-      await player.seekTo(currentTime, true);
-      videoDuration = await player.getDuration();
-
-      const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-      videoInfo = await response.json();
-
-      isPlayerLoaded = true;
+        isPlayerLoaded = true;
+      } else if (event.data === 0) {
+        await nextVideo();
+      }
     });
+  }
+
+  async function updateVideoInfo() {
+    console.log("queue[0]:", queue[0]);
+    const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${queue[0]}&format=json`);
+    videoDuration = await player.getDuration();
+    videoInfo = await response.json();
+  }
+
+  async function nextVideo() {
+    queue.shift();
+    console.log("next video started");
+    startedAt = Date.now();
+    isPlayerLoaded = false;
+
+    // ping server to update queue to next video
+    await fetch("/api/data/next-video", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoId: queue[0] })
+    });
+
+    if (queue.length > 0) {
+      player.loadVideoById(queue[0]);
+      await player.playVideo();
+    }
+  }
+
+  function addVideoToQueue(id: string) {
+    videoIdInput = "";
+    queue = [...queue, id];
+    fetch("/api/data/add-to-queue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoId: id })
+    });
+  }
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
   }
 </script>
 
 <main class="flex flex-col gap-16 justify-center items-center h-screen">
   {#if videoInfo}
     <h1>
-      <a href="https://youtube.com/watch?v={videoId}"><b>{videoInfo.title}</b></a>
-      <!-- by
-      <a href={videoInfo.author_url}><b>{videoInfo.author_name}</b></a> -->
+      <a href="https://youtube.com/watch?v={queue[0]}"><b>{videoInfo.title}</b></a>
     </h1>
   {/if}
 
@@ -72,7 +118,7 @@
 
   {#if videoDuration > 0}
     <div class="bg-neutral-800 rounded-full h-4 w-[32rem]">
-      <div class="bg-fg rounded-full h-full" style="width: {currentTime / videoDuration * 100}%"></div>
+      <div class="bg-fg rounded-full h-full" style="width: {clamp(currentTime / videoDuration * 100, 0, 100)}%"></div>
     </div>
   {/if}
 
@@ -83,5 +129,20 @@
     >
       turn on the tv
     </button>
+  {:else}
+    <form onsubmit={() => addVideoToQueue(videoIdInput)}>
+      <input
+        type="text"
+        placeholder="add video to queue"
+        bind:value={videoIdInput}
+        class="border-2 border-fg px-4 rounded-xl h-12 text-fg"
+      />
+      <button
+        type="submit"
+        class="cursor-pointer border-2 border-fg px-6 h-12 hover:bg-fg hover:text-bg font-bold rounded-xl"
+      >
+        add
+      </button>
+    </form>
   {/if}
 </main>
